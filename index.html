@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prop Futures Payout Simulator — MFFU Rapid 50K Rules</title>
+<meta name="description" content="Free Monte Carlo payout simulator for MFFU Rapid 50K prop accounts. Enter your strategy stats, model evals, trailing drawdown, consistency rule, buffers and daily payouts across 120 trading days.">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Archivo:wght@400;500;600;700;800;900&display=swap');
+:root{
+  --bg:#0a0e0f; --panel:#11181a; --panel2:#0d1416; --line:#1d2a2d;
+  --grn:#16c784; --grn-dim:#0e7a52; --red:#e0524a; --amber:#e8a33d;
+  --txt:#dce8e6; --mut:#6d8480; --mut2:#42564f; --blue:#3d8bd4;
+  --grid:#16211f;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:'JetBrains Mono',monospace;
+  background-image:radial-gradient(circle at 15% 0%,#0f1a17 0%,transparent 45%),radial-gradient(circle at 85% 100%,#10161c 0%,transparent 50%);
+  min-height:100vh;padding:24px 18px 60px}
+.wrap{max-width:1280px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;
+  border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:22px}
+h1{font-family:'Archivo',sans-serif;font-weight:900;font-size:1.55rem;letter-spacing:-.02em;line-height:1}
+h1 .tk{color:var(--grn)}
+.sub{color:var(--mut);font-size:.72rem;margin-top:6px;letter-spacing:.02em}
+.badge{font-size:.62rem;border:1px solid var(--grn-dim);color:var(--grn);padding:4px 9px;border-radius:3px;
+  text-transform:uppercase;letter-spacing:.12em;background:rgba(22,199,132,.06)}
+.layout{display:grid;grid-template-columns:300px 1fr;gap:18px}
+@media(max-width:880px){.layout{grid-template-columns:1fr}}
+.panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:8px;padding:18px}
+.panel h2{font-family:'Archivo',sans-serif;font-size:.74rem;text-transform:uppercase;letter-spacing:.16em;
+  color:var(--mut);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.panel h2::before{content:"";width:6px;height:6px;background:var(--grn);border-radius:50%;box-shadow:0 0 8px var(--grn)}
+.ctrl{margin-bottom:18px}
+.ctrl label{display:flex;justify-content:space-between;font-size:.7rem;color:var(--mut);margin-bottom:7px}
+.ctrl label b{color:var(--txt);font-weight:700}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:var(--grid);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--grn);cursor:pointer;box-shadow:0 0 0 4px rgba(22,199,132,.15)}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--grn);
+  cursor:pointer;border:none;box-shadow:0 0 0 4px rgba(22,199,132,.15)}
+.tiny{font-size:.6rem;color:var(--mut2);margin-top:5px;line-height:1.4}
+.runbtn{width:100%;background:var(--grn);color:#04130d;border:none;padding:11px;border-radius:5px;
+  font-family:'JetBrains Mono',monospace;font-weight:800;font-size:.78rem;cursor:pointer;
+  letter-spacing:.04em;text-transform:uppercase;transition:.15s}
+.runbtn:hover{background:#1ee098;transform:translateY(-1px)}
+.runbtn:active{transform:translateY(0)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:13px 14px;position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--scol,var(--grn))}
+.stat .k{font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--mut)}
+.stat .v{font-family:'Archivo',sans-serif;font-weight:800;font-size:1.3rem;margin-top:5px;letter-spacing:-.01em}
+.stat .d{font-size:.6rem;color:var(--mut);margin-top:3px}
+.chartbox{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:16px 10px 8px;margin-bottom:16px}
+.chart-h{display:flex;justify-content:space-between;align-items:center;padding:0 8px 10px}
+.chart-h .t{font-size:.7rem;text-transform:uppercase;letter-spacing:.13em;color:var(--mut)}
+.legend{display:flex;gap:14px;font-size:.62rem;color:var(--mut);flex-wrap:wrap}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
+svg{display:block;width:100%;height:auto}
+.cal{width:100%;border-collapse:collapse;font-size:.7rem}
+.cal th{text-align:left;color:var(--mut);font-weight:500;text-transform:uppercase;letter-spacing:.08em;
+  font-size:.6rem;padding:9px 10px;border-bottom:1px solid var(--line)}
+.cal td{padding:10px;border-bottom:1px solid var(--grid)}
+.cal tr:last-child td{border-bottom:none}
+.cal .day{color:var(--grn);font-weight:700}
+.cal .ev{color:var(--txt)}
+.cal .ev small{display:block;color:var(--mut);font-size:.6rem;margin-top:2px}
+.money{text-align:right;font-weight:700}
+.pos{color:var(--grn)}.neg{color:var(--red)}.neu{color:var(--amber)}
+.note{font-size:.66rem;color:var(--mut);line-height:1.6;background:rgba(232,163,61,.05);
+  border:1px solid rgba(232,163,61,.2);border-radius:6px;padding:13px 15px;margin-top:18px}
+.note b{color:var(--amber)}
+.rules{font-size:.64rem;color:var(--mut);line-height:1.7;margin-top:14px}
+.rules span{color:var(--grn)}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{font-size:.66rem;padding:7px 13px;border:1px solid var(--line);border-radius:5px;cursor:pointer;
+  color:var(--mut);background:var(--panel2);transition:.12s;text-transform:uppercase;letter-spacing:.06em}
+.tab.on{background:var(--grn);color:#04130d;border-color:var(--grn);font-weight:700}
+.flicker{animation:fl .9s infinite}@keyframes fl{50%{opacity:.4}}
+.sect{font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:var(--mut2);
+  border-top:1px solid var(--line);padding-top:14px;margin:4px 0 14px}
+footer{max-width:1280px;margin:30px auto 0;font-size:.6rem;color:var(--mut2);line-height:1.7;
+  border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>PROP PAYOUT <span class="tk">SIMULATOR</span> · MFFU RAPID 50K</h1>
+    <div class="sub">Enter your strategy stats · Monte Carlo 900 paths/run · evals → funded → buffer → daily payouts · 120 trading days</div>
+  </div>
+  <div class="badge" id="runstamp">live model</div>
+</header>
+
+<div class="layout">
+  <!-- CONTROLS -->
+  <aside class="panel">
+    <h2>Your Strategy</h2>
+    <div class="ctrl">
+      <label>Backtest win rate <b id="wrv">65%</b></label>
+      <input type="range" id="wr" min="30" max="95" value="65">
+      <div class="tiny">Straight from your backtest or journal. The haircut slider below stress-tests it.</div>
+    </div>
+    <div class="ctrl">
+      <label>Average win <b id="awv">$300</b></label>
+      <input type="range" id="aw" min="50" max="1500" step="25" value="300">
+    </div>
+    <div class="ctrl">
+      <label>Average loss <b id="alv">$350</b></label>
+      <input type="range" id="al" min="50" max="1500" step="25" value="350">
+      <div class="tiny">High win rate + avg loss &gt; avg win = negative skew. Loss <i>clusters</i>, not averages, are what trip trailing drawdown.</div>
+    </div>
+    <div class="ctrl">
+      <label>Trades per day <b id="tpdv">2</b></label>
+      <input type="range" id="tpd" min="1" max="10" value="2">
+    </div>
+    <div class="ctrl">
+      <label>Eval accounts at start <b id="naccv">5</b></label>
+      <input type="range" id="nacc" min="1" max="15" value="5">
+    </div>
+    <div class="ctrl">
+      <label>Eval fee per account <b id="feev">$165</b></label>
+      <input type="range" id="fee" min="50" max="400" step="5" value="165">
+    </div>
+
+    <div class="sect">Reality Haircuts</div>
+    <div class="ctrl">
+      <label>Win-rate haircut vs backtest <b id="degv">5%</b></label>
+      <input type="range" id="deg" min="0" max="40" value="5">
+      <div class="tiny">Live edge is usually worse than backtest. 5–10% is honest unless your backtest spans multiple regimes.</div>
+    </div>
+    <div class="ctrl">
+      <label>Per-trade cost (commission + slippage) <b id="slipv">$6</b></label>
+      <input type="range" id="slip" min="0" max="25" value="6">
+      <div class="tiny">Most backtests are GROSS. This cost was never in them — small per trade, real across hundreds of trades.</div>
+    </div>
+    <div class="ctrl">
+      <label>Chop-day frequency <b id="chopv">12%</b></label>
+      <input type="range" id="chop" min="0" max="40" value="12">
+      <div class="tiny">Share of sessions with no clean setup / reduced edge.</div>
+    </div>
+    <div class="ctrl">
+      <label>Reinvest payouts into new evals after day 30 <b id="reinv">ON</b></label>
+      <input type="range" id="reinvest" min="0" max="1" value="1">
+      <div class="tiny">Adds another batch of evals per profitable week once payouts &gt; fees + $3k.</div>
+    </div>
+    <button class="runbtn" id="run">▶ Run Simulation</button>
+    <div class="rules">
+      <b style="color:var(--mut)">MFFU RAPID 50K RULES (2026)</b><br>
+      Target <span>$3,000</span> (6%) · EOD trail DD <span>$2,000</span><br>
+      Consistency <span>50% best-day</span> → min 2+ days<br>
+      Funded split <span>90%</span> · buffer <span>$2,100</span><br>
+      Daily payouts, 24h cooldown · min <span>$250</span><br>
+      Funded DD = intraday trailing (tighter)
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <div class="stats" id="kpis"></div>
+
+    <div class="chartbox">
+      <div class="chart-h">
+        <span class="t">Cumulative Net (Payouts − Fees) · 120 trading days</span>
+        <div class="legend">
+          <span><i style="background:var(--grn)"></i>Median</span>
+          <span><i style="background:var(--blue)"></i>Average</span>
+          <span><i style="background:rgba(22,199,132,.18)"></i>25–75%</span>
+          <span><i style="background:rgba(109,132,128,.25)"></i>5–95%</span>
+        </div>
+      </div>
+      <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab on" data-s="p50">Median</div>
+      <div class="tab" data-s="mean">Average</div>
+      <div class="tab" data-s="p95">Best (95p)</div>
+      <div class="tab" data-s="p5">Worst (5p)</div>
+    </div>
+
+    <div class="chartbox" style="padding:4px 0">
+      <table class="cal" id="cal"><tbody></tbody></table>
+    </div>
+
+    <div class="note">
+      <b>How to read this honestly.</b> The output is only as good as your inputs — a curve-fit backtest in produces a
+      fantasy curve out. Three traps the sliders exist to model: (1) most backtests are <b>gross</b> — commission and
+      slippage were never subtracted, and across hundreds of trades that quietly eats a large slice of edge;
+      (2) negative-skew profiles (high win rate, avg loss &gt; avg win) die by loss <i>clusters</i>, not averages — a
+      $2,000 trailing drawdown can be tripped by one bad morning even when the long-run expectancy is positive;
+      (3) funded accounts use tighter <b>intraday</b> trailing drawdown than the eval's EOD math, so an account that
+      passed comfortably can still get clipped on the funded side. Calibrate the per-trade cost slider from your first
+      weeks of real fills, then re-run.
+    </div>
+  </main>
+</div>
+</div>
+
+<footer>
+  <div class="wrap">
+    Educational simulation only — not financial advice, not a guarantee of results. Monte Carlo output reflects the
+    assumptions you enter, nothing more. Not affiliated with or endorsed by My Funded Futures (MFFU); rule parameters
+    are user-configurable approximations of published 2026 terms — verify current rules with the firm before
+    purchasing an eval. Futures trading involves substantial risk of loss.
+  </div>
+</footer>
+
+<script>
+const F=n=>'$'+Math.round(n).toLocaleString();
+const Fk=n=>(Math.abs(n)>=1000?(n/1000).toFixed(n>=10000?0:1)+'k':Math.round(n));
+// trading-day -> calendar date (starts next Monday from today, skip weekends)
+const START=(()=>{const d=new Date();d.setDate(d.getDate()+((8-d.getDay())%7||7));return d;})();
+function tdDate(td){let d=new Date(START),c=0;while(true){const wd=d.getDay();if(wd!==0&&wd!==6){c++;if(c===td)break;}d.setDate(d.getDate()+1);}return d;}
+const fmtD=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+// ---- Monte Carlo ----
+function gamma(k,theta){let s=0;for(let i=0;i<k;i++)s+=-Math.log(Math.random());return s*theta;}
+function pois(l){let L=Math.exp(-l),k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}
+const H=120;
+const TARGET=3000,EOD=2000,SPLIT=.9,BUF=2100,MINP=250,BEST=.5,FUND_DD=2000;
+function dayPnl(P,chopDay){
+  let n=pois(P.tpd),w=P.wr*(1-P.deg);
+  if(chopDay){n=n>>1;w*=0.7;}
+  let pnl=0;
+  for(let i=0;i<n;i++){
+    if(Math.random()<w)pnl+=gamma(4,P.aw/4)-P.cost;
+    else pnl-=gamma(4,P.al/4)+P.cost;
+  }
+  return pnl;
+}
+function newAcct(){return{st:'eval',bal:0,peak:0,best:0,buf:0,paid:0};}
+function runPath(P){
+  let accts=[];for(let i=0;i<P.nacc;i++)accts.push(newAcct());
+  let extra=[],cumPay=0,cumFee=P.nacc*P.fee,tl=new Array(H);
+  for(let d=1;d<=H;d++){
+    let dayPay=0;const all=accts.concat(extra);
+    for(const a of all){if(a.st==='dead')continue;
+      const p=dayPnl(P,Math.random()<P.chop);
+      a.bal+=p;a.peak=Math.max(a.peak,a.bal);a.best=Math.max(a.best,p);
+      if(a.st==='eval'){if(a.bal<=a.peak-EOD){a.st='dead';continue;}
+        if(a.bal>=TARGET&&a.best<=BEST*a.bal+1e-9){a.st='funded';a.bal=0;a.peak=0;a.best=0;a.buf=0;}}
+      else{if(a.bal<=a.peak-FUND_DD){a.st='dead';continue;}
+        if(a.bal>a.buf){let g=a.bal-a.buf;if(a.buf<BUF){const need=BUF-a.buf,fill=Math.min(g,need);a.buf+=fill;g-=fill;}
+          if(g>=MINP&&a.buf>=BUF){const pay=SPLIT*g;dayPay+=pay;a.paid+=pay;a.bal-=g;}}}
+    }
+    cumPay+=dayPay;
+    if(P.reinvest&&d>=30&&d%5===0&&(cumPay-cumFee)>3000&&extra.length<30){
+      for(let i=0;i<P.nacc;i++)extra.push(newAcct());cumFee+=P.nacc*P.fee;}
+    tl[d-1]=cumPay-cumFee;
+  }
+  return tl;
+}
+function pct(arr,q){const s=[...arr].sort((a,b)=>a-b);const i=(s.length-1)*q/100;const lo=Math.floor(i),hi=Math.ceil(i);return s[lo]+(s[hi]-s[lo])*(i-lo);}
+function params(){
+  return{
+    wr:+wr_.value/100, aw:+aw_.value, al:+al_.value, tpd:+tpd_.value,
+    nacc:+nacc_.value, fee:+fee_.value,
+    deg:+deg_.value/100, cost:+slip_.value, chop:+chop_.value/100,
+    reinvest:+document.getElementById('reinvest').value
+  };
+}
+function simulate(){
+  const P=params();
+  const N=900;const paths=[];for(let i=0;i<N;i++)paths.push(runPath(P));
+  const bands={p5:[],p25:[],p50:[],mean:[],p75:[],p95:[]};
+  for(let d=0;d<H;d++){const col=paths.map(p=>p[d]);
+    bands.p5.push(pct(col,5));bands.p25.push(pct(col,25));bands.p50.push(pct(col,50));
+    bands.mean.push(col.reduce((a,b)=>a+b,0)/col.length);bands.p75.push(pct(col,75));bands.p95.push(pct(col,95));}
+  const finals=paths.map(p=>p[H-1]);
+  return {bands,finals,negProb:finals.filter(x=>x<0).length/finals.length};
+}
+
+// ---- render ----
+let DATA=null;
+function renderKPIs(){
+  const f=DATA.finals;
+  const cards=[
+    ['Worst case',pct(f,5),'5th pctile · 120d',getC(pct(f,5))],
+    ['Median',pct(f,50),'50th pctile · 120d','var(--grn)'],
+    ['Average',f.reduce((a,b)=>a+b,0)/f.length,'mean · 120d','var(--blue)'],
+    ['Best case',pct(f,95),'95th pctile · 120d','var(--grn)'],
+  ];
+  document.getElementById('kpis').innerHTML=cards.map(c=>
+    `<div class="stat" style="--scol:${c[3]}"><div class="k">${c[0]}</div>
+     <div class="v ${c[1]<0?'neg':'pos'}">${F(c[1])}</div><div class="d">${c[2]}</div></div>`).join('');
+}
+function getC(v){return v<0?'var(--red)':v<5000?'var(--amber)':'var(--grn)';}
+function monthMarks(){
+  const marks=[];let last=-1;
+  for(let td=1;td<=H;td++){const d=tdDate(td);
+    if(d.getMonth()!==last){last=d.getMonth();
+      marks.push([td-1,d.toLocaleDateString('en-US',{month:'short'})]);}}
+  return marks;
+}
+function renderChart(){
+  const b=DATA.bands,W=900,Hh=340,pad=46;
+  const all=b.p5.concat(b.p95);let mn=Math.min(...all,0),mx=Math.max(...all);
+  const x=i=>pad+(W-pad-10)*(i/(H-1));
+  const y=v=>Hh-30-(Hh-60)*((v-mn)/(mx-mn||1));
+  const area=(top,bot)=>{let p='M'+x(0)+' '+y(top[0]);for(let i=1;i<H;i++)p+=' L'+x(i)+' '+y(top[i]);
+    for(let i=H-1;i>=0;i--)p+=' L'+x(i)+' '+y(bot[i]);return p+'Z';};
+  const line=a=>{let p='M'+x(0)+' '+y(a[0]);for(let i=1;i<H;i++)p+=' L'+x(i)+' '+y(a[i]);return p;};
+  let g='';for(let i=0;i<=5;i++){const v=mn+(mx-mn)*i/5,yy=y(v);
+    g+=`<line x1="${pad}" y1="${yy}" x2="${W-10}" y2="${yy}" stroke="var(--grid)" stroke-width="1"/>
+        <text x="${pad-6}" y="${yy+3}" fill="var(--mut2)" font-size="10" text-anchor="end">${Fk(v)}</text>`;}
+  monthMarks().forEach(([i,l])=>{
+    g+=`<text x="${x(i)}" y="${Hh-12}" fill="var(--mut2)" font-size="10" text-anchor="middle">${l}</text>`;});
+  const zero=y(0);
+  document.getElementById('chart').innerHTML=g+
+    `<line x1="${pad}" y1="${zero}" x2="${W-10}" y2="${zero}" stroke="var(--red)" stroke-width="1" stroke-dasharray="3 3" opacity=".5"/>
+     <path d="${area(b.p95,b.p5)}" fill="rgba(109,132,128,.14)"/>
+     <path d="${area(b.p75,b.p25)}" fill="rgba(22,199,132,.16)"/>
+     <path d="${line(b.mean)}" fill="none" stroke="var(--blue)" stroke-width="1.6" opacity=".85"/>
+     <path d="${line(b.p50)}" fill="none" stroke="var(--grn)" stroke-width="2.2"/>`;
+}
+const CKPTS=[5,10,20,30,45,60,90,120];
+let curScen='p50';
+function renderCal(){
+  const b=DATA.bands;let rows='';
+  const evMap={5:['First eval checkpoint','Earliest possible pass (best day ≤50% rule)'],
+    10:['Evals clearing','Funded accounts building the $2,100 buffer'],
+    20:['First funded payouts','90% split begins once buffer is full'],
+    30:['Decision gate','If net-positive → consider adding evals'],
+    45:['Expansion underway','New evals seeded from payouts'],
+    60:['Multi-account scaling','Compounding across accounts'],
+    90:['Mature portfolio',''],
+    120:['6-month horizon','']};
+  CKPTS.forEach(d=>{
+    const v=b[curScen][d-1];const dt=fmtD(tdDate(d));
+    const cls=v<0?'neg':(v<3000?'neu':'pos');
+    const ev=evMap[d]||['',''];
+    rows+=`<tr><td class="day">Day ${d}<br><small style="color:var(--mut)">${dt}</small></td>
+      <td class="ev">${ev[0]}<small>${ev[1]}</small></td>
+      <td class="money ${cls}">${F(v)}</td></tr>`;
+  });
+  document.getElementById('cal').querySelector('tbody').innerHTML=
+    `<tr><th>Checkpoint</th><th>Milestone</th><th style="text-align:right">Net (this scenario)</th></tr>`+rows;
+}
+function full(){
+  document.getElementById('run').textContent='▶ Running…';
+  document.getElementById('runstamp').textContent='computing';
+  document.getElementById('runstamp').classList.add('flicker');
+  setTimeout(()=>{DATA=simulate();renderKPIs();renderChart();renderCal();
+    document.getElementById('run').textContent='▶ Run Simulation';
+    document.getElementById('runstamp').textContent='updated '+new Date().toLocaleTimeString();
+    document.getElementById('runstamp').classList.remove('flicker');},30);
+}
+const wr_=document.getElementById('wr'),aw_=document.getElementById('aw'),al_=document.getElementById('al'),
+  tpd_=document.getElementById('tpd'),nacc_=document.getElementById('nacc'),fee_=document.getElementById('fee'),
+  deg_=document.getElementById('deg'),chop_=document.getElementById('chop'),slip_=document.getElementById('slip');
+wr_.oninput=()=>wrv.textContent=wr_.value+'%';
+aw_.oninput=()=>awv.textContent='$'+aw_.value;
+al_.oninput=()=>alv.textContent='$'+al_.value;
+tpd_.oninput=()=>tpdv.textContent=tpd_.value;
+nacc_.oninput=()=>naccv.textContent=nacc_.value;
+fee_.oninput=()=>feev.textContent='$'+fee_.value;
+deg_.oninput=()=>degv.textContent=deg_.value+'%';
+chop_.oninput=()=>chopv.textContent=chop_.value+'%';
+slip_.oninput=()=>slipv.textContent='$'+slip_.value;
+document.getElementById('reinvest').oninput=e=>reinv.textContent=+e.target.value?'ON':'OFF';
+document.getElementById('run').onclick=full;
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+  curScen=t.dataset.s;renderCal();});
+full();
+</script>
+</body>
+</html>
