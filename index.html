@@ -202,6 +202,11 @@ footer{max-width:1280px;margin:30px auto 0;font-size:.6rem;color:var(--mut2);lin
 
 <footer>
   <div class="wrap">
+    <div style="font-size:.72rem;color:var(--txt);margin-bottom:10px">
+      Want a multi-firm version (Apex, TPT, Topstep), or spotted a rule that's off?
+      <a href="https://github.com/kikidorion/mffu-payout-simulator/issues" style="color:var(--grn)">Open an issue</a>
+      or <a href="#" id="mailme" style="color:var(--grn)">email me</a> — built by a trader actually running MFFU evals.
+    </div>
     Educational simulation only — not financial advice, not a guarantee of results. Monte Carlo output reflects the
     assumptions you enter, nothing more. Not affiliated with or endorsed by My Funded Futures (MFFU); rule parameters
     are user-configurable approximations of published 2026 terms — verify current rules with the firm before
@@ -366,7 +371,14 @@ document.getElementById('run').onclick=full;
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
   curScen=t.dataset.s;renderCal();});
+// email assembled at click-time to dodge scrapers
+document.getElementById('mailme').onclick=e=>{e.preventDefault();
+  location.href='mailto:'+['kiarad2011','gmail.com'].join('@')+'?subject=MFFU%20simulator';};
+// count Run clicks as engagement events (no-op until GoatCounter site exists)
+document.getElementById('run').addEventListener('click',()=>{
+  window.goatcounter&&goatcounter.count({path:'run-simulation',title:'Run clicked',event:true});});
 full();
 </script>
+<script data-goatcounter="https://kikidorion.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
